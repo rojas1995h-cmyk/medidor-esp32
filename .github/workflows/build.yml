@@ -1,0 +1,42 @@
+name: Compilar APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar archivos
+        uses: actions/checkout@v4
+
+      - name: Instalar Java 17
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Instalar Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: Ensamblar proyecto y compilar APK
+        run: |
+          flutter create app_temp --org com.medidor.app --project-name smart_energy_monitor
+          cp pubspec.yaml app_temp/pubspec.yaml
+          cp lib/main.dart app_temp/lib/main.dart
+          cp AndroidManifest.xml app_temp/android/app/src/main/AndroidManifest.xml
+          cd app_temp
+          sed -i 's/minSdk = flutter.minSdkVersion/minSdk = 21/g' android/app/build.gradle.kts 2>/dev/null || true
+          sed -i 's/minSdkVersion flutter.minSdkVersion/minSdkVersion 21/g' android/app/build.gradle 2>/dev/null || true
+          flutter pub get
+          flutter build apk --release
+
+      - name: Publicar APK descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Medidor-ESP32-APK
+          path: app_temp/build/app/outputs/flutter-apk/app-release.apk
